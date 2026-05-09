@@ -3,11 +3,13 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 
 from backend.modules.messages.schemas import MessageCreate
-from backend.modules.messages.service import save_message
+from backend.modules.messages.service import save_message, list_messages
 from backend.modules.projects.models import CsvFile
 from backend.modules.query import llm, sql_engine, pandas_agent
 from backend.modules.query.schemas import QueryResponse
 from fastapi import HTTPException
+
+HISTORY_LIMIT = 10  # last N messages sent as context to the LLM
 
 
 def get_csv_file(db: Session, csv_file_id: UUID, project_id: UUID) -> CsvFile:
@@ -21,6 +23,12 @@ def get_csv_file(db: Session, csv_file_id: UUID, project_id: UUID) -> CsvFile:
     return csv
 
 
+def build_history(db: Session, project_id: UUID) -> llm.History:
+    messages = list_messages(db, project_id)
+    recent = messages[-HISTORY_LIMIT:] if len(messages) > HISTORY_LIMIT else messages
+    return [{"role": m.role, "content": m.content} for m in recent]
+
+
 async def handle_query(
     db: Session,
     project_id: UUID,
@@ -31,6 +39,7 @@ async def handle_query(
     schema = json.loads(csv.schema_json)
 
     save_message(db, project_id, MessageCreate(role="user", content=question))
+    history = build_history(db, project_id)
 
     try:
         sql = llm.generate_sql(
@@ -41,24 +50,26 @@ async def handle_query(
             row_count=csv.row_count,
         )
         data = sql_engine.run_sql(sql)
-        answer = llm.format_answer(question, data)
+        answer = llm.format_answer(question, data, history=history)
 
         save_message(db, project_id, MessageCreate(
             role="assistant",
             content=answer,
             engine="sql",
             query=sql,
+            chart_data=json.dumps(data) if data else None,
         ))
 
         return QueryResponse(answer=answer, query=sql, engine="sql", success=True, data=data)
 
     except Exception:
         try:
-            answer = await pandas_agent.run_pandas_agent(question, csv.path)
+            answer, chart_data = await pandas_agent.run_pandas_agent(question, csv.path, history=history)
             save_message(db, project_id, MessageCreate(
-                role="assistant", content=answer, engine="pandas"
+                role="assistant", content=answer, engine="pandas",
+                chart_data=json.dumps(chart_data) if chart_data else None,
             ))
-            return QueryResponse(answer=answer, engine="pandas", success=True)
+            return QueryResponse(answer=answer, engine="pandas", success=True, data=chart_data)
 
         except Exception as e:
             return QueryResponse(

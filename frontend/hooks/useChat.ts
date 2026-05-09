@@ -4,10 +4,10 @@ import { messagesApi, queryApi } from '@/lib/api'
 import type { Message, QueryResponse, CsvFile } from '@/types'
 
 export function useChat(projectId: string, csvFiles: CsvFile[]) {
-  const [messages, setMessages]         = useState<Message[]>([])
-  const [loading, setLoading]           = useState(true)
-  const [asking, setAsking]             = useState(false)
-  const [lastResponse, setLastResponse] = useState<QueryResponse | null>(null)
+  const [messages, setMessages]     = useState<Message[]>([])
+  const [loading, setLoading]       = useState(true)
+  const [asking, setAsking]         = useState(false)
+  const [messageData, setMessageData] = useState<Record<string, QueryResponse['data']>>({})
 
   const activeCsv = csvFiles[0] ?? null
 
@@ -16,6 +16,13 @@ export function useChat(projectId: string, csvFiles: CsvFile[]) {
     try {
       const { data } = await messagesApi.list(projectId)
       setMessages(data)
+      const dataMap: Record<string, QueryResponse['data']> = {}
+      for (const msg of data as Message[]) {
+        if (msg.chart_data) {
+          try { dataMap[msg.id] = JSON.parse(msg.chart_data) } catch {}
+        }
+      }
+      setMessageData(dataMap)
     } finally {
       setLoading(false)
     }
@@ -39,9 +46,9 @@ export function useChat(projectId: string, csvFiles: CsvFile[]) {
 
     try {
       const { data } = await queryApi.ask(projectId, activeCsv.id, question)
-      setLastResponse(data)
+      const assistantId = crypto.randomUUID()
       const assistantMsg: Message = {
-        id: crypto.randomUUID(),
+        id: assistantId,
         role: 'assistant',
         content: data.answer,
         engine: data.engine as Message['engine'],
@@ -49,16 +56,18 @@ export function useChat(projectId: string, csvFiles: CsvFile[]) {
         created_at: new Date().toISOString(),
       }
       setMessages((prev) => [...prev, assistantMsg])
+      if (data.data) {
+        setMessageData((prev) => ({ ...prev, [assistantId]: data.data }))
+      }
     } catch {
-      const errMsg: Message = {
+      setMessages((prev) => [...prev, {
         id: crypto.randomUUID(),
         role: 'assistant',
-        content: 'Something went wrong. Please try again.',
+        content: 'Algo deu errado. Tente novamente.',
         engine: null,
         query: null,
         created_at: new Date().toISOString(),
-      }
-      setMessages((prev) => [...prev, errMsg])
+      }])
     } finally {
       setAsking(false)
     }
@@ -67,8 +76,8 @@ export function useChat(projectId: string, csvFiles: CsvFile[]) {
   const clear = async () => {
     await messagesApi.clear(projectId)
     setMessages([])
-    setLastResponse(null)
+    setMessageData({})
   }
 
-  return { messages, loading, asking, lastResponse, activeCsv, ask, clear }
+  return { messages, loading, asking, messageData, activeCsv, ask, clear }
 }

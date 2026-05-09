@@ -32,6 +32,7 @@ export interface Message {
   content: string
   engine: 'sql' | 'pandas' | null
   query: string | null
+  chart_data: string | null
   created_at: string
 }
 

@@ -18,6 +18,7 @@ def save_message(db: Session, project_id: UUID, data: MessageCreate) -> Message:
         content=data.content,
         engine=data.engine,
         query=data.query,
+        chart_data=data.chart_data,
     )
     db.add(message)
     db.commit()

@@ -8,20 +8,20 @@ interface Props {
   messages: Message[]
   loading: boolean
   asking: boolean
-  lastResponse: QueryResponse | null
+  messageData: Record<string, QueryResponse['data']>
   activeCsv: CsvFile | null
   onAsk: (q: string) => void
   onClear: () => void
 }
 
 const SUGGESTIONS = [
-  'What are the top 5 rows by value?',
-  'Show me a summary of all columns',
-  'Which category has the highest total?',
-  'Are there any null values?',
+  'Qual o total de vendas por categoria?',
+  'Quem teve o maior faturamento?',
+  'Quantos registros existem por status?',
+  'Qual o valor médio das transações?',
 ]
 
-export function ChatBox({ messages, loading, asking, lastResponse, activeCsv, onAsk, onClear }: Props) {
+export function ChatBox({ messages, loading, asking, messageData, activeCsv, onAsk, onClear }: Props) {
   const [input, setInput] = useState('')
   const bottomRef         = useRef<HTMLDivElement>(null)
 
@@ -47,9 +47,9 @@ export function ChatBox({ messages, loading, asking, lastResponse, activeCsv, on
         {messages.length === 0 ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-6 py-12">
             <div className="text-center">
-              <p className="text-lg font-medium text-zinc-700 dark:text-zinc-300">Ready to explore your data</p>
+              <p className="text-lg font-medium text-zinc-700 dark:text-zinc-300">Pronto para explorar seus dados</p>
               <p className="text-sm text-zinc-400 mt-1">
-                {activeCsv ? `Loaded: ${activeCsv.filename} · ${activeCsv.row_count?.toLocaleString()} rows` : 'No file loaded'}
+                {activeCsv ? `Arquivo: ${activeCsv.filename} · ${activeCsv.row_count?.toLocaleString()} linhas` : 'Nenhum arquivo carregado'}
               </p>
             </div>
             <div className="grid grid-cols-2 gap-2 w-full max-w-lg">
@@ -62,10 +62,11 @@ export function ChatBox({ messages, loading, asking, lastResponse, activeCsv, on
           </div>
         ) : (
           <>
-            {messages.map((msg, i) => {
-              const isLastAssistant = msg.role === 'assistant' && i === messages.length - 1
-              return <MessageBubble key={msg.id} message={msg} data={isLastAssistant ? lastResponse?.data : null} />
-            })}
+            {messages.map((msg) => (
+              <div key={msg.id} className="print-message">
+                <MessageBubble message={msg} data={messageData[msg.id] ?? null} />
+              </div>
+            ))}
             {asking && (
               <div className="flex justify-start">
                 <div className="rounded-2xl rounded-tl-sm bg-zinc-100 dark:bg-zinc-800 px-4 py-3">
@@ -82,10 +83,10 @@ export function ChatBox({ messages, loading, asking, lastResponse, activeCsv, on
         <div ref={bottomRef} />
       </div>
 
-      <div className="border-t border-zinc-200 dark:border-zinc-800 px-6 py-4">
+      <div className="no-print border-t border-zinc-200 dark:border-zinc-800 px-6 py-4">
         {messages.length > 0 && (
           <div className="flex justify-end mb-2">
-            <button onClick={onClear} className="text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 transition">Clear history</button>
+            <button onClick={onClear} className="text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 transition">Limpar histórico</button>
           </div>
         )}
         <div className="flex gap-3 items-end">
@@ -93,17 +94,17 @@ export function ChatBox({ messages, loading, asking, lastResponse, activeCsv, on
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit() } }}
-            placeholder="Ask anything about your data…"
+            placeholder="Pergunte qualquer coisa sobre seus dados…"
             rows={1}
             className="flex-1 resize-none rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-4 py-3 text-sm placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
             style={{ maxHeight: '120px' }}
           />
           <Button onClick={submit} disabled={!input.trim() || asking} className="shrink-0 h-11">
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
-            Ask
+            Enviar
           </Button>
         </div>
-        <p className="mt-2 text-xs text-zinc-400 text-center">Enter to send · Shift+Enter for new line</p>
+        <p className="mt-2 text-xs text-zinc-400 text-center">Enter para enviar · Shift+Enter para nova linha</p>
       </div>
     </div>
   )
