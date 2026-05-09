@@ -1,8 +1,8 @@
-import json
 import shutil
 from pathlib import Path
 from uuid import UUID
 
+import numpy as np
 import pandas as pd
 from fastapi import HTTPException, UploadFile
 from sqlalchemy.orm import Session
@@ -64,6 +64,47 @@ def infer_schema(df: pd.DataFrame) -> dict:
     }
 
 
+def build_profile(df: pd.DataFrame) -> dict:
+    total = len(df)
+    profile: dict = {"columns": []}
+
+    for col in df.columns:
+        series = df[col]
+        null_count = int(series.isna().sum())
+        null_pct = round(null_count / total, 4) if total else 0
+
+        col_info: dict = {
+            "name": col,
+            "type": str(series.dtype),
+            "null_pct": null_pct,
+            "unique_count": int(series.nunique()),
+        }
+
+        if pd.api.types.is_numeric_dtype(series):
+            s = series.dropna()
+            if len(s):
+                col_info["min"] = _json_safe(s.min())
+                col_info["max"] = _json_safe(s.max())
+                col_info["mean"] = _json_safe(s.mean())
+        else:
+            top = series.value_counts().head(5)
+            col_info["top_values"] = [
+                {"value": str(k), "count": int(v)} for k, v in top.items()
+            ]
+
+        profile["columns"].append(col_info)
+
+    return profile
+
+
+def _json_safe(val):
+    if isinstance(val, (np.integer,)):
+        return int(val)
+    if isinstance(val, (np.floating,)):
+        return round(float(val), 4)
+    return val
+
+
 async def upload_csv(db: Session, project_id: UUID, user_id: UUID, file: UploadFile) -> CsvFile:
     if not file.filename.endswith(".csv"):
         raise HTTPException(status_code=400, detail="Only CSV files are allowed")
@@ -77,15 +118,21 @@ async def upload_csv(db: Session, project_id: UUID, user_id: UUID, file: UploadF
     content = await file.read()
     dest.write_bytes(content)
 
-    df = pd.read_csv(dest)
-    schema = infer_schema(df)
+    try:
+        df = pd.read_csv(dest)
+        schema = infer_schema(df)
+        profile = build_profile(df)
+    except Exception as exc:
+        dest.unlink(missing_ok=True)
+        raise HTTPException(status_code=400, detail=f"Could not parse CSV: {exc}") from exc
 
     csv_file = CsvFile(
         project_id=project.id,
         filename=file.filename,
         path=str(dest),
         row_count=len(df),
-        schema_json=json.dumps(schema),
+        schema_json=schema,
+        profile_json=profile,
     )
     db.add(csv_file)
     db.commit()

@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { NewProjectModal } from '@/components/project/NewProjectModal'
+import { Skeleton } from '@/components/ui/Skeleton'
 import { useProjects } from '@/hooks/useProjects'
 
 export default function DashboardPage() {
@@ -25,6 +26,15 @@ export default function DashboardPage() {
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4"/></svg>
             New project
           </button>
+
+          {loading && (
+            <div className="mt-12">
+              <Skeleton className="h-4 w-32 mb-4" />
+              <div className="grid grid-cols-2 gap-3">
+                {[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-20 rounded-xl" />)}
+              </div>
+            </div>
+          )}
 
           {!loading && projects.length > 0 && (
             <div className="mt-12">

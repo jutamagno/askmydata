@@ -2,12 +2,14 @@
 import { useEffect, useRef, useState } from 'react'
 import { MessageBubble } from './MessageBubble'
 import { Button } from '@/components/ui/Button'
+import { Skeleton } from '@/components/ui/Skeleton'
 import type { CsvFile, Message, QueryResponse } from '@/types'
 
 interface Props {
   messages: Message[]
   loading: boolean
   asking: boolean
+  streamingId: string | null
   messageData: Record<string, QueryResponse['data']>
   activeCsv: CsvFile | null
   onAsk: (q: string) => void
@@ -21,7 +23,7 @@ const SUGGESTIONS = [
   'Qual o valor médio das transações?',
 ]
 
-export function ChatBox({ messages, loading, asking, messageData, activeCsv, onAsk, onClear }: Props) {
+export function ChatBox({ messages, loading, asking, streamingId, messageData, activeCsv, onAsk, onClear }: Props) {
   const [input, setInput] = useState('')
   const bottomRef         = useRef<HTMLDivElement>(null)
 
@@ -35,8 +37,12 @@ export function ChatBox({ messages, loading, asking, messageData, activeCsv, onA
 
   if (loading) {
     return (
-      <div className="flex-1 flex items-center justify-center">
-        <div className="h-6 w-6 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />
+      <div className="flex-1 overflow-y-auto px-6 py-6 flex flex-col gap-4">
+        {[80, 60, 90, 50, 70].map((w, i) => (
+          <div key={i} className={`flex ${i % 2 === 0 ? 'justify-end' : 'justify-start'}`}>
+            <Skeleton className={`h-10 rounded-2xl`} style={{ width: `${w}%` } as React.CSSProperties} />
+          </div>
+        ))}
       </div>
     )
   }
@@ -63,27 +69,20 @@ export function ChatBox({ messages, loading, asking, messageData, activeCsv, onA
         ) : (
           <>
             {messages.map((msg) => (
-              <div key={msg.id} className="print-message">
-                <MessageBubble message={msg} data={messageData[msg.id] ?? null} />
+              <div key={msg.id} data-message-id={msg.id}>
+                <MessageBubble
+                  message={msg}
+                  data={messageData[msg.id] ?? null}
+                  isStreaming={msg.id === streamingId}
+                />
               </div>
             ))}
-            {asking && (
-              <div className="flex justify-start">
-                <div className="rounded-2xl rounded-tl-sm bg-zinc-100 dark:bg-zinc-800 px-4 py-3">
-                  <div className="flex gap-1">
-                    {[0,1,2].map((i) => (
-                      <div key={i} className="h-1.5 w-1.5 rounded-full bg-zinc-400 animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
           </>
         )}
         <div ref={bottomRef} />
       </div>
 
-      <div className="no-print border-t border-zinc-200 dark:border-zinc-800 px-6 py-4">
+      <div className="border-t border-zinc-200 dark:border-zinc-800 px-6 py-4">
         {messages.length > 0 && (
           <div className="flex justify-end mb-2">
             <button onClick={onClear} className="text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 transition">Limpar histórico</button>

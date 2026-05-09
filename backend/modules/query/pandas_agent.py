@@ -1,12 +1,11 @@
+import asyncio
+
 import pandas as pd
+
 from backend.modules.query.llm import pandas_answer, History
 
-ChartData = list[dict] | None
 
-
-async def run_pandas_agent(
-    question: str, filepath: str, history: History | None = None
-) -> tuple[str, ChartData]:
+def _get_df_info(filepath: str) -> str:
     df = pd.read_csv(filepath)
 
     cat_cols = df.select_dtypes(include="object").columns.tolist()
@@ -35,34 +34,14 @@ async def run_pandas_agent(
     if num_cols:
         sections.append(f"\nNumeric totals:\n{df[num_cols].sum().to_string()}")
 
-    answer = pandas_answer(question, "\n".join(sections), history=history)
-    chart_data = _build_chart_data(df, question, cat_cols, num_cols)
-
-    return answer, chart_data
+    return "\n".join(sections)
 
 
-def _build_chart_data(
-    df: pd.DataFrame,
-    question: str,
-    cat_cols: list[str],
-    num_cols: list[str],
-) -> ChartData:
-    if not cat_cols or not num_cols:
-        return None
+async def get_df_info(filepath: str) -> str:
+    """Async wrapper — runs CSV parsing off the event loop."""
+    return await asyncio.to_thread(_get_df_info, filepath)
 
-    # Prefer the categorical column mentioned in the question
-    question_lower = question.lower()
-    relevant_cat = next(
-        (c for c in cat_cols if c.lower() in question_lower and df[c].nunique() <= 20),
-        next((c for c in cat_cols if df[c].nunique() <= 20), None),
-    )
-    if not relevant_cat:
-        return None
 
-    grouped = (
-        df.groupby(relevant_cat)[num_cols]
-        .sum()
-        .sort_values(num_cols[0], ascending=False)
-        .reset_index()
-    )
-    return grouped.to_dict(orient="records")
+async def run_pandas_agent(question: str, filepath: str, history: History | None = None) -> str:
+    df_info = await get_df_info(filepath)
+    return await asyncio.to_thread(pandas_answer, question, df_info, history)

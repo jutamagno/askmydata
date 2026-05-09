@@ -1,8 +1,7 @@
 from sqlalchemy import Column, String, DateTime, ForeignKey, Integer, Text
-from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
-from backend.database import Base
+from backend.database import Base, UUID, JSONB
 import uuid
 
 class Project(Base):
@@ -26,7 +25,8 @@ class CsvFile(Base):
     filename    = Column(String, nullable=False)
     path        = Column(String, nullable=False)
     row_count   = Column(Integer, nullable=True)
-    schema_json = Column(Text, nullable=True)
-    created_at  = Column(DateTime(timezone=True), server_default=func.now())
+    schema_json  = Column(JSONB, nullable=True)
+    profile_json = Column(JSONB, nullable=True)
+    created_at   = Column(DateTime(timezone=True), server_default=func.now())
 
     project = relationship("Project", back_populates="csv_files")

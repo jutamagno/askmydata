@@ -48,8 +48,8 @@ export function ChartDisplay({ data }: Props) {
       tooltip: { mode: 'index' as const, intersect: false },
     },
     scales: chart.type !== 'pie' ? {
-      x: { ticks: { color: '#71717a', font: { size: 11 } }, grid: { color: '#27272a' } },
-      y: { ticks: { color: '#71717a', font: { size: 11 } }, grid: { color: '#27272a' } },
+      x: { ticks: { color: '#71717a', font: { size: 11 } }, grid: { color: 'rgba(113,113,122,0.15)' } },
+      y: { ticks: { color: '#71717a', font: { size: 11 } }, grid: { color: 'rgba(113,113,122,0.15)' } },
     } : undefined,
   }
 

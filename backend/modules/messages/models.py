@@ -1,8 +1,7 @@
 from sqlalchemy import Column, String, DateTime, ForeignKey, Text
-from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
-from backend.database import Base
+from backend.database import Base, UUID, JSONB
 import uuid
 
 class Message(Base):
@@ -14,7 +13,7 @@ class Message(Base):
     content    = Column(Text, nullable=False)
     engine     = Column(String, nullable=True)
     query      = Column(Text, nullable=True)
-    chart_data = Column(Text, nullable=True)
+    chart_data = Column(JSONB, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     project = relationship("Project", back_populates="messages")

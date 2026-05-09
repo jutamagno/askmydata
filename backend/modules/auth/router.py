@@ -1,6 +1,9 @@
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session
 from authlib.integrations.starlette_client import OAuth
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+
 from backend.database import get_db
 from backend.config import get_settings
 from backend.modules.auth import service
@@ -10,6 +13,7 @@ from backend.modules.auth.models import User
 
 settings = get_settings()
 router = APIRouter()
+limiter = Limiter(key_func=get_remote_address)
 
 oauth = OAuth()
 oauth.register(
@@ -20,21 +24,27 @@ oauth.register(
     client_kwargs={"scope": "openid email profile"},
 )
 
+
 @router.post("/register", response_model=TokenResponse)
-def register(body: RegisterRequest, db: Session = Depends(get_db)):
+@limiter.limit("5/minute")
+def register(request: Request, body: RegisterRequest, db: Session = Depends(get_db)):
     user = service.register_user(db, body.email, body.password)
     token = service.create_access_token(str(user.id))
     return TokenResponse(access_token=token)
 
+
 @router.post("/login", response_model=TokenResponse)
-def login(body: LoginRequest, db: Session = Depends(get_db)):
+@limiter.limit("5/minute")
+def login(request: Request, body: LoginRequest, db: Session = Depends(get_db)):
     user = service.authenticate_user(db, body.email, body.password)
     token = service.create_access_token(str(user.id))
     return TokenResponse(access_token=token)
 
+
 @router.get("/google")
 async def google_login(request: Request):
     return await oauth.google.authorize_redirect(request, settings.google_redirect_uri)
+
 
 @router.get("/google/callback", response_model=TokenResponse)
 async def google_callback(request: Request, db: Session = Depends(get_db)):
@@ -43,6 +53,7 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
     user = service.get_or_create_google_user(db, user_info["email"], user_info["sub"])
     token = service.create_access_token(str(user.id))
     return TokenResponse(access_token=token)
+
 
 @router.get("/me", response_model=UserOut)
 def me(current_user: User = Depends(get_current_user)):

@@ -1,8 +1,9 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 
+from backend.config import get_settings
 from backend.database import get_db
 from backend.modules.auth.dependencies import get_current_user
 from backend.modules.auth.models import User
@@ -10,6 +11,9 @@ from backend.modules.projects import service
 from backend.modules.projects.schemas import CsvFileOut, ProjectCreate, ProjectOut, ProjectSummary
 
 router = APIRouter()
+settings = get_settings()
+
+_MAX_UPLOAD_BYTES = settings.max_upload_size_mb * 1024 * 1024
 
 
 @router.post("/", response_model=ProjectOut)
@@ -63,4 +67,18 @@ async def upload_csv(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    if not file.filename or not file.filename.lower().endswith(".csv"):
+        raise HTTPException(status_code=400, detail="Only .csv files are accepted")
+
+    content = await file.read()
+    if len(content) > _MAX_UPLOAD_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail=f"File exceeds the {settings.max_upload_size_mb}MB limit",
+        )
+
+    # Reset stream so service.upload_csv can read it
+    import io
+    file.file = io.BytesIO(content)  # type: ignore[assignment]
+
     return await service.upload_csv(db, project_id, current_user.id, file)

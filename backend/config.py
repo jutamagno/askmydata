@@ -9,9 +9,11 @@ class Settings(BaseSettings):
 
     secret_key: str
     algorithm: str = "HS256"
-    access_token_expire_minutes: int = 60 * 24 * 7  # 7 days
+    access_token_expire_minutes: int = 60 * 8  # 8 hours
 
-    # Deixe vazio para usar Ollama local (padrão)
+    # Set to "anthropic" to use Anthropic; default is "ollama" (local)
+    llm_provider: str = "ollama"
+
     anthropic_api_key: str = ""
 
     ollama_base_url: str = "http://localhost:11434/v1"
@@ -22,6 +24,7 @@ class Settings(BaseSettings):
     google_redirect_uri: str = "http://localhost:8000/auth/google/callback"
 
     upload_dir: str = "uploads"
+    max_upload_size_mb: int = 10
 
     # Comma-separated origins, e.g. "http://localhost:3000,https://myapp.com"
     cors_origins: str = "http://localhost:3000"

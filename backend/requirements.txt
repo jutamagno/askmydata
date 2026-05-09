@@ -1,5 +1,12 @@
 fastapi
 uvicorn[standard]
+structlog
+slowapi
+pytest
+pytest-asyncio
+httpx
+factory-boy
+pytest-cov
 python-multipart
 duckdb
 pandas
