@@ -1,6 +1,6 @@
 # AskMyData
 
-[![CI](https://github.com/yourusername/askmydata/actions/workflows/ci.yml/badge.svg)](https://github.com/yourusername/askmydata/actions/workflows/ci.yml)
+[![CI](https://github.com/jutamagno/askmydata/actions/workflows/ci.yml/badge.svg)](https://github.com/jutamagno/askmydata/actions/workflows/ci.yml)
 
 Talk to your CSV files using natural language. Upload a spreadsheet, ask questions in plain English (or Portuguese), and get streaming answers with charts — no SQL knowledge required.
 
@@ -8,7 +8,7 @@ Talk to your CSV files using natural language. Upload a spreadsheet, ask questio
 
 ```bash
 # 1. Clone and configure
-git clone https://github.com/yourusername/askmydata
+git clone https://github.com/jutamagno/askmydata
 cp .env.example .env   # edit secrets
 
 # 2. Start everything (pulls Ollama model automatically)
