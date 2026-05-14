@@ -88,7 +88,7 @@ askmydata/
 ```bash
 # Backend
 cd backend && pip install -r requirements.txt
-PYTHONPATH=.. alembic upgrade head
+PYTHONPATH=.. alembic upgrade head   # runs 4 migrations (schema, chart_data, jsonb, csv_profile)
 uvicorn backend.main:app --reload
 
 # Frontend
@@ -98,6 +98,29 @@ cd frontend && npm install && npm run dev
 pytest --cov=backend --cov-report=term-missing   # SQLite in-memory, no Docker needed
 cd frontend && npm test
 ```
+
+### Migrations
+
+| Version | Change |
+|---|---|
+| `0001_initial` | Users, projects, messages tables |
+| `0002_add_chart_data` | Adds `chart_data` column to messages |
+| `0003_jsonb_columns` | Converts schema/profile/chart_data to JSONB |
+| `0004_csv_profile` | Adds `csv_profile` JSONB column to projects |
+
+### Environment variables (full reference)
+
+| Variable | Default | Required | Description |
+|---|---|---|---|
+| `DATABASE_URL` | — | Yes | PostgreSQL connection string |
+| `SECRET_KEY` | — | Yes | JWT signing key (min 32 chars) |
+| `ANTHROPIC_API_KEY` | `""` | No | Set to use Claude instead of Ollama |
+| `OLLAMA_MODEL` | `codellama` | No | Any model in your Ollama instance (also: `qwen2.5-coder`, `sqlcoder`) |
+| `OLLAMA_BASE_URL` | `http://ollama:11434/v1` | No | Ollama OpenAI-compatible endpoint |
+| `GOOGLE_CLIENT_ID` | — | No | Google OAuth (optional) |
+| `GOOGLE_CLIENT_SECRET` | — | No | Google OAuth (optional) |
+| `MAX_UPLOAD_SIZE_MB` | `10` | No | Max CSV upload size |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | `480` | No | JWT TTL (8 hours) |
 
 ## Security
 
@@ -121,11 +144,15 @@ cd frontend && npm test
 
 ## Roadmap
 
-- [ ] Export to Excel
-- [ ] Scheduled reports (email digest)
-- [ ] Team workspaces (multi-user projects)
-- [ ] Vector search over column values for fuzzy matching
-- [ ] Support for Excel (.xlsx) files
+- [ ] **Excel export** — `GET /reports/{project_id}/export` returning `.xlsx` with all query results and charts in a single workbook
+- [ ] **Scheduled reports** — cron-based email digest using APScheduler; send weekly summaries of the most-queried insights per project
+- [ ] **Team workspaces** — multi-user projects with role-based access (owner / editor / viewer); currently all projects are private to the creating user
+- [ ] **Vector search over column values** — embed column values at upload time (ChromaDB) for fuzzy matching ("similar to Paris" → finds "Paris, France" and "Paris, TX")
+- [ ] **Excel (.xlsx) support** — convert via openpyxl before passing to DuckDB; multi-sheet files should create one project per sheet
+- [ ] **Google OAuth** — the `.env.example` already has `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` placeholders; the `authlib` dependency is installed; wire up the OAuth flow in `backend/modules/auth/`
+- [ ] **GPU support for Ollama** — the `docker-compose.yml` has the NVIDIA device reservation commented out; uncomment to enable GPU-accelerated inference
+- [ ] **Streaming chart updates** — charts are currently rendered after the full response arrives; stream partial results so the chart updates as tokens come in
+- [ ] **Query history search** — full-text search over past questions across all projects; useful when returning to a dataset after weeks
 
 ## License
 
